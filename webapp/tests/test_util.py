@@ -1,13 +1,10 @@
 import os
 import shutil
+import socket
 import time
 import whisper
 
-from django.test import TestCase
-from django.http import HttpRequest
-
-#from django.contrib.auth import authenticate
-from django.contrib.auth.models import User
+from .base import TestCase
 
 from django.conf import settings
 from graphite import util
@@ -16,32 +13,20 @@ from graphite.wsgi import application  # NOQA makes sure we have a working WSGI 
 
 class UtilTest(TestCase):
 
-    def test_getProfile(self):
-        request = HttpRequest()
-        request.user = User.objects.create_user('testuser', 'testuser@test.com', 'testuserpassword')
-        self.assertEqual( str(util.getProfile(request, False)), 'Profile for testuser' )
-
-    def test_getProfileByUsername(self):
-        request = HttpRequest()
-        request.user = User.objects.create_user('testuser', 'testuser@test.com', 'testuserpassword')
-        util.getProfile(request, False)
-        self.assertEqual( str(util.getProfileByUsername('testuser')), 'Profile for testuser' )
-        self.assertEqual( util.getProfileByUsername('nonexistentuser'), None )
-
     def test_is_local_interface_ipv4(self):
         addresses = ['127.0.0.1', '127.0.0.1:8080', '8.8.8.8']
         results = [ util.is_local_interface(a) for a in addresses ]
         self.assertEqual( results, [True, True, False] )
 
     def test_is_local_interface_ipv6(self):
-        addresses = ['::1', '[::1]:8080', '[::1]']
+        addresses = ['::1', '[::1]:8080', '[::1]', '::1:8080']
         results = [ util.is_local_interface(a) for a in addresses ]
-        self.assertEqual( results, [True, True, True] )
+        self.assertEqual( results, [True, True, True, False] )
 
-    def test_is_local_interface_bad_ipv6(self):
-        with self.assertRaises(Exception):
-            addresses = ['::1:8080']
-            results = [ util.is_local_interface(a) for a in addresses ]
+    def test_is_local_interface_dns(self):
+        addresses = ['localhost', socket.gethostname(), 'google.com']
+        results = [ util.is_local_interface(a) for a in addresses ]
+        self.assertEqual( results, [True, True, False] )
 
     def test_is_escaped_pattern(self):
         self.assertFalse( util.is_escaped_pattern('asdf') )
